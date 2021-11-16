@@ -14,12 +14,8 @@
 package com.amazon.spapi.api;
 
 import com.amazon.spapi.client.ApiException;
-import com.amazon.spapi.model.orders.GetOrderAddressResponse;
-import com.amazon.spapi.model.orders.GetOrderBuyerInfoResponse;
-import com.amazon.spapi.model.orders.GetOrderItemsBuyerInfoResponse;
-import com.amazon.spapi.model.orders.GetOrderItemsResponse;
-import com.amazon.spapi.model.orders.GetOrderResponse;
-import com.amazon.spapi.model.orders.GetOrdersResponse;
+import com.amazon.spapi.dto.AmazonAuthorConfigDTO;
+import com.amazon.spapi.model.orders.*;
 import org.junit.Test;
 import org.junit.Ignore;
 
@@ -147,5 +143,4 @@ public class OrdersV0ApiTest {
 
         // TODO: test validations
     }
-    
 }

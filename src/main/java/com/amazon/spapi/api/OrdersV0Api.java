@@ -16,17 +16,12 @@ package com.amazon.spapi.api;
 import com.amazon.spapi.client.*;
 import com.amazon.spapi.SellingPartnerAPIAA.*;
 
+import com.amazon.spapi.dto.AmazonAuthorConfigDTO;
+import com.amazon.spapi.model.orders.*;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 
-
-import com.amazon.spapi.model.orders.GetOrderAddressResponse;
-import com.amazon.spapi.model.orders.GetOrderBuyerInfoResponse;
-import com.amazon.spapi.model.orders.GetOrderItemsBuyerInfoResponse;
-import com.amazon.spapi.model.orders.GetOrderItemsResponse;
-import com.amazon.spapi.model.orders.GetOrderResponse;
-import com.amazon.spapi.model.orders.GetOrdersResponse;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -959,5 +954,100 @@ public class OrdersV0Api {
                 .setLWAAuthorizationSigner(lwaAuthorizationSigner)
                 .setBasePath(endpoint));
         }
+    }
+
+
+    /**
+     * 获取OrdersV0Api实例
+     * @param authorConfigDTO
+     * @return
+     * @throws ApiException
+     */
+    public static OrdersV0Api amazonAuthorizationGrant(AmazonAuthorConfigDTO authorConfigDTO) throws ApiException {
+        AWSAuthenticationCredentials awsAuthenticationCredentials;
+        AWSAuthenticationCredentialsProvider awsAuthenticationCredentialsProvider;
+        LWAAuthorizationCredentials lwaAuthorizationCredentials;
+        //注意这个地方的region分北美，欧洲，远东三个AWS区域
+        awsAuthenticationCredentials = AWSAuthenticationCredentials.builder()
+                //注册成为开发者时生成的AWS访问密钥ID
+                .accessKeyId(authorConfigDTO.getAccessKeyId())
+                //注册成为开发者时生成的AWS访问密钥
+                .secretKey(authorConfigDTO.getSecretKey())
+                //注意，这里的region分北美(us-east-1)，欧洲(eu-west-1)，远东(us-west-2)
+                .region(authorConfigDTO.getRegion())
+                .build();
+        awsAuthenticationCredentialsProvider = AWSAuthenticationCredentialsProvider.builder()
+                //创建IAM职权的时候会生成这个ARN
+                .roleArn(authorConfigDTO.getRoleArn())
+                //唯一值，可以使用UUID
+                .roleSessionName(authorConfigDTO.getRoleSessionName())
+                .build();
+        lwaAuthorizationCredentials = LWAAuthorizationCredentials.builder()
+                //查看开发者信息的时候可看到LWA的客户端编码
+                .clientId(authorConfigDTO.getClientId())
+                //查看开发者信息的时候可看到LWA的客户端秘钥
+                .clientSecret(authorConfigDTO.getClientSecret())
+                //根据上面的客户端编码和客户端秘钥请求客户端令牌
+                .refreshToken(authorConfigDTO.getRefreshToken())
+                //"https://api.amazon.com/auth/o2/token"
+                .endpoint(authorConfigDTO.getLwaEndpoint())
+                .build();
+        OrdersV0Api ordersV0Api = new OrdersV0Api.Builder()
+                .awsAuthenticationCredentials(awsAuthenticationCredentials)
+                .lwaAuthorizationCredentials(lwaAuthorizationCredentials)
+                .awsAuthenticationCredentialsProvider(awsAuthenticationCredentialsProvider)
+                //注意，这里的endpoint分北美，欧洲，远东三个地域，每个区域的链接是不一样的
+                //北美，https://sellingpartnerapi-na.amazon.com
+                //欧洲，https://sellingpartnerapi-eu.amazon.com
+                //远东，https://sellingpartnerapi-fe.amazon.com
+                .endpoint(authorConfigDTO.getSpEndPoint())
+                .build();
+        //授权失败，未获取到API实例的话抛出异常，进行重试
+        if(null == ordersV0Api) {
+            throw new RuntimeException();
+        }
+        return ordersV0Api;
+    }
+
+    /**
+     * 获取订单信息
+     * @param ordersV0Api
+     * @param marketplaceIds
+     * @param authorConfigDTO
+     * @return
+     * @throws ApiException
+     */
+    public static OrderList getAmazonOrders(OrdersV0Api ordersV0Api, List<String> marketplaceIds, AmazonAuthorConfigDTO authorConfigDTO) throws ApiException {
+        List<String> fulfillmentChannels = new ArrayList<>();
+        fulfillmentChannels.add("MFN");
+        List<String> orderStatuses = new ArrayList<>();
+        orderStatuses.add("Unshipped");
+        GetOrdersResponse response = ordersV0Api.getOrders(marketplaceIds,"2021-03-17T18:00:00","2021-03-18T18:00:00",null,
+                null,null,null,null,null,null,10,
+                null,null,null);
+        if(null == response) {
+            throw new RuntimeException();
+        }
+        System.out.println(response.getPayload().getOrders());
+        return response.getPayload().getOrders();
+    }
+
+    public static void main(String[] args) throws ApiException {
+        AmazonAuthorConfigDTO dto = new AmazonAuthorConfigDTO();
+        dto.setAccessKeyId("AKIAZP4RYSPKPKS6CSXB");
+        dto.setSecretKey("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");
+        dto.setRoleArn("arn:aws:iam::652603855828:role/Glolinker-Role");
+        dto.setRoleSessionName("Glolinker-policy");
+        dto.setClientId("amzn1.application-oa2-client.b0c088e31c3d480cb02ebadf4ed4db2b");
+        dto.setClientSecret("4e7826f172183b28fae42667e4cc83dffdffa40c8badcce2cb5e1c8111558c28");
+        dto.setRefreshToken("Atzr|IwEBINwdAA1k_6BnhMYuSbfar3YBVAd03i8J16WdUyX0GB4W7YsdQqXSNfumZ8-TdONow3yPaI7wdOG4UqLzr1FwHnEG5fiZLPiFalhr3MiN5rCA2wYDK9cb71V0ylIJYjbzrET033QWS0katslowhf4KnuNjQjmiwa6gMNow3s5yRYtFcN2fuZmbrSHr02LR17FOuqU1VeIZbRykRaZ2riyDpjmPhOpEdrNWU87H8d5fgN3VBke-yPVDUFjQMXSVrALLKvtxY4LtM0d-TLvELuaEjHrQ_an6ZKfNpapXHkKKEdD2OcuSKr6g4TNi9PSsPaFGD4");
+        dto.setRegion("us-east-1");//根据区域确定
+        dto.setSpEndPoint("https://sellingpartnerapi-na.amazon.com");//根据区域确定
+        dto.setLwaEndpoint("https://api.amazon.com/auth/o2/token");//写死
+        OrdersV0Api ordersV0Api = amazonAuthorizationGrant(dto);
+        List<String> marketplaceIds = new ArrayList<>();
+        marketplaceIds.add("ATVPDKIKX0DER");//根据国家确定
+        OrderList orderList = getAmazonOrders(ordersV0Api,marketplaceIds, dto);
+        System.out.println(orderList.toString());
     }
 }
